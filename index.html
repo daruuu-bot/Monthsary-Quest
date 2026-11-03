@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>Monthsary Quest</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Caveat:wght@500;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#1c1b2e;--frame:#3a3a5c;--fg:#f8f8f8;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+html,body{height:100%;margin:0;-webkit-touch-callout:none;-webkit-user-select:none;user-select:none;touch-action:manipulation;overscroll-behavior:none}
+body{background:var(--bg);color:var(--fg);font-family:'Press Start 2P',monospace;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;overflow:hidden}
+#wrap{width:min(96vw,720px,calc((100vh - 230px) * 1.5));aspect-ratio:3/2;border:6px solid var(--frame);border-radius:10px;background:#000;box-shadow:0 0 0 3px #0c0c18}
+canvas{width:100%;height:100%;image-rendering:pixelated;display:block}
+#pad{display:flex;gap:34px;align-items:center;user-select:none;-webkit-user-select:none;touch-action:none}
+.dp{display:grid;grid-template-columns:repeat(3,46px);grid-template-rows:repeat(3,46px);gap:2px}
+.dp button,#ab{background:#4a4a72;border:3px solid #7a7aa8;color:#fff;font:inherit;font-size:12px;border-radius:8px;touch-action:none}
+.dp button:active,#ab:active{background:#e04870}
+#ab{width:76px;height:76px;border-radius:50%;font-size:18px}
+.hint{font-size:8px;opacity:.7;text-align:center;line-height:1.6;max-width:90vw}
+@media (pointer:coarse){.hint{display:none}}
+@media (orientation:landscape) and (max-height:520px){
+  body{gap:0}
+  #wrap{width:calc((100dvh - 12px) * 1.5);max-width:calc(100vw - 260px)}
+  #pad{position:fixed;inset:0;justify-content:space-between;align-items:flex-end;padding:0 max(14px,env(safe-area-inset-right,0px)) 14px max(14px,env(safe-area-inset-left,0px));box-sizing:border-box;pointer-events:none}
+  #pad>*{pointer-events:auto}
+  .dp{grid-template-columns:repeat(3,40px);grid-template-rows:repeat(3,40px)}
+  .hint{display:none}
+}
+#letter{position:fixed;inset:0;background:rgba(10,8,20,.82);display:flex;align-items:center;justify-content:center;padding:16px;z-index:5}
+#letter[hidden]{display:none}
+.paper{background:#fbf1d9;color:#4a2d2d;width:min(92vw,560px);max-height:86vh;overflow:auto;padding:28px 26px;border-radius:4px;box-shadow:0 10px 40px #000a;border:2px solid #d9b98a;font-family:'Caveat','Segoe Script',cursive;font-size:clamp(20px,4.6vw,26px);line-height:1.35}
+.paper h2{font-family:'Press Start 2P',monospace;font-size:12px;color:#d03058;margin:0 0 16px;font-weight:400;line-height:1.6}
+#ltxt{white-space:pre-wrap;min-height:120px}
+#close{margin-top:18px;background:#d03058;color:#fff;border:0;font-family:'Press Start 2P',monospace;font-size:10px;padding:12px 16px;border-radius:6px;cursor:pointer}
+.fh{position:fixed;bottom:-30px;font-size:22px;pointer-events:none;z-index:6;animation:fl 4s linear forwards}
+@keyframes fl{to{transform:translateY(-110vh) rotate(20deg);opacity:0}}
+@media (prefers-reduced-motion:reduce){.fh{display:none}}
+</style>
+</head>
+<body>
+<div id="wrap"><canvas id="c" width="240" height="160"></canvas></div>
+<div id="pad">
+  <div class="dp">
+    <span></span><button data-d="up">▲</button><span></span>
+    <button data-d="left">◀</button><span></span><button data-d="right">▶</button>
+    <span></span><button data-d="down">▼</button><span></span>
+  </div>
+  <button id="ab">A</button>
+</div>
+<div class="hint">Arrow keys / WASD to walk &nbsp;•&nbsp; Z / Enter / Space = A</div>
+
+<div id="letter" hidden>
+  <div class="paper"><h2 id="lhead"></h2><div id="ltxt"></div><button id="close">CLOSE</button></div>
+</div>
+
+<script>
+/* ====== EDIT ME: make it yours ====== */
+const CONFIG = {
+  titleTop: "MONTHSARY",
+  titleBottom: "QUEST",
+  toName: "My Love",
+  fromName: "Your Trainer",
+  intro: "Happy Monthsary, My Love! Someone hid 3 HEARTS around town. Find them all and a special LETTER will appear!",
+  items: [
+    { x: 22, y: 7,  name: "BOUQUET",      found: "You found the BOUQUET! It reminds you of the flowers on our first date. A HEART appeared!" },
+    { x: 2,  y: 13, name: "PHOTO",        found: "You found our PHOTO! My favorite memory of us together. Another HEART!" },
+    { x: 14, y: 7,  name: "MOVIE TICKET", found: "You found the MOVIE TICKET! Every date with you is my favorite. The last HEART!" }
+  ],
+  npcHint: "Psst! Hearts are hidden near the flowers, by the garden, and beside the pond.",
+  npcDone: "You got all 3 hearts! Go get the letter in front of the house!",
+  doorText: "The house is quiet. Maybe the LETTER is waiting outside...",
+  allDone: "All 3 HEARTS collected! A LETTER appeared in front of the house!",
+  ending: "Happy Monthsary! I'm so lucky to be your player 2.",
+  letter: `Dear My Love,
+
+Happy monthsary! Every month with you feels like finding a rare item I never knew I was looking for.
+
+Thank you for the laughs, the little moments, and for being my favorite person to explore this world with.
+
+Here's to many more months, and a thousand more adventures together.
+
+I love you.
+
+Forever yours,
+Your Trainer`
+};
+/* ==================================== */
+
+const cv = document.getElementById('c'), c = cv.getContext('2d');
+c.imageSmoothingEnabled = false;
+const T = 16, W = 240, H = 160;
+const MAP = [
+"TTTTTTTTTTTTTTTTTTTTTTTT",
+"T....f....hhhh.....f...T",
+"T.........hhdh.........T",
+"T...TT....pppp.....TT..T",
+"T...TT....pppp.........T",
+"T.....pppppppppppppp...T",
+"T.f...p....ww......p...T",
+"T.....p...wwww.....p..fT",
+"T.....p...wwww.....p...T",
+"T..ff.p....ww......p...T",
+"T.....pppppppppppppp...T",
+"T..TT.........TT.......T",
+"T..TT.........TT.......T",
+"T.f.......f.........f..T",
+"T......................T",
+"TTTTTTTTTTTTTTTTTTTTTTTT"];
+const MW = MAP[0].length, MH = MAP.length;
+const tile = (x, y) => (x < 0 || y < 0 || x >= MW || y >= MH) ? 'T' : MAP[y][x];
+const rnd = (x, y, n) => ((x * 73856093 ^ y * 19349663 ^ n * 83492791) >>> 0) % 100;
+
+/* ---- pre-render map ---- */
+const mapCv = document.createElement('canvas'); mapCv.width = MW * T; mapCv.height = MH * T;
+const m = mapCv.getContext('2d');
+function grass(x, y) {
+  m.fillStyle = '#78c850'; m.fillRect(x, y, T, T);
+  m.fillStyle = '#58a838';
+  const r = rnd(x, y, 1); m.fillRect(x + 3 + r % 8, y + 3 + (r >> 1) % 8, 2, 1); m.fillRect(x + 10 - r % 6, y + 11 - r % 5, 1, 2);
+}
+for (let ty = 0; ty < MH; ty++) for (let tx = 0; tx < MW; tx++) {
+  const t = MAP[ty][tx], x = tx * T, y = ty * T;
+  if (t === '.') grass(x, y);
+  else if (t === 'p') { m.fillStyle = '#e8d098'; m.fillRect(x, y, T, T); m.fillStyle = '#c8b078'; const r = rnd(tx, ty, 2); m.fillRect(x + r % 12, y + (r >> 1) % 12, 2, 1); m.fillRect(x + 9, y + 3 + r % 9, 1, 1); }
+  else if (t === 'f') { grass(x, y); [[3, 4, '#f85888'], [10, 3, '#f8d838'], [6, 10, '#f8f8f8'], [12, 11, '#f85888']].forEach(([a, b, col]) => { m.fillStyle = col; m.fillRect(x + a, y + b, 2, 2); m.fillStyle = '#208030'; m.fillRect(x + a, y + b + 2, 1, 2); }); }
+  else if (t === 'T') { grass(x, y); m.fillStyle = '#6b4a2a'; m.fillRect(x + 6, y + 11, 4, 5); m.fillStyle = '#186020'; m.fillRect(x + 1, y + 2, 14, 10); m.fillRect(x + 3, y, 10, 2); m.fillStyle = '#28883a'; m.fillRect(x + 3, y + 2, 5, 3); m.fillRect(x + 9, y + 6, 4, 3); m.fillStyle = '#103c14'; m.fillRect(x + 1, y + 10, 14, 2); }
+  else if (t === 'w') { m.fillStyle = '#5890f8'; m.fillRect(x, y, T, T); m.fillStyle = '#90b8f8'; m.fillRect(x + 2, y + 4, 5, 1); m.fillRect(x + 9, y + 11, 5, 1); }
+  else { // house parts
+    const wall = tile(tx, ty - 1) === 'h' || tile(tx, ty - 1) === 'd';
+    if (!wall) { m.fillStyle = '#d84030'; m.fillRect(x, y, T, T); m.fillStyle = '#a02820'; for (let i = 3; i < T; i += 4) m.fillRect(x, y + i, T, 1); m.fillStyle = '#f87060'; m.fillRect(x, y, T, 1); }
+    else { m.fillStyle = '#f8f0d8'; m.fillRect(x, y, T, T); m.fillStyle = '#c8b898'; m.fillRect(x, y + 15, T, 1);
+      if (t === 'd') { m.fillStyle = '#7a4a28'; m.fillRect(x + 3, y + 1, 10, 15); m.fillStyle = '#f8d838'; m.fillRect(x + 10, y + 9, 2, 2); }
+      else { m.fillStyle = '#58a8e8'; m.fillRect(x + 3, y + 3, 10, 8); m.fillStyle = '#c8e8f8'; m.fillRect(x + 4, y + 4, 3, 3); m.fillStyle = '#fff'; m.fillRect(x + 8, y + 3, 1, 8); } }
+  }
+}
+
+/* ---- sprites ---- */
+const HEART = [".XX.XX.", "XXXXXXX", "XXXXXXX", ".XXXXX.", "..XXX..", "...X..."];
+function heart(x, y, col) { c.fillStyle = col; HEART.forEach((r, j) => [...r].forEach((ch, i) => { if (ch === 'X') c.fillRect(x + i, y + j, 1, 1); })); c.fillStyle = 'rgba(255,255,255,.7)'; if (col[1] !== '5') c.fillRect(x + 1, y + 1, 1, 1); }
+const BALL = ["..XXXX..", ".XRRRRX.", "XRRRRRRX", "XXXXXXXX", "XWWBBWWX", "XWWBBWWX", ".XWWWWX.", "..XXXX.."];
+const BC = { X: '#202028', R: '#e03838', W: '#f8f8f8', B: '#c0c0c8' };
+function ball(x, y) { BALL.forEach((r, j) => [...r].forEach((ch, i) => { if (ch !== '.') { c.fillStyle = BC[ch]; c.fillRect(x + i * 2, y + j * 2, 2, 2); } })); }
+function item(x, y, t) {
+  const bob = Math.round(Math.sin(t / 250) * 1.5);
+  c.fillStyle = 'rgba(0,0,0,.2)'; c.fillRect(x + 3, y + 14, 10, 2);
+  ball(x, y - 1); heart(x + 4, y - 9 + bob, '#f04070');
+  if (Math.floor(t / 350) % 2) { c.fillStyle = '#fff'; c.fillRect(x + 14, y + 1, 1, 3); c.fillRect(x + 13, y + 2, 3, 1); }
+}
+function letterSprite(x, y, t) {
+  const bob = Math.round(Math.sin(t / 250) * 1.5);
+  c.fillStyle = 'rgba(0,0,0,.2)'; c.fillRect(x + 2, y + 14, 12, 2);
+  c.fillStyle = '#b08060'; c.fillRect(x + 1, y + 4, 14, 10);
+  c.fillStyle = '#fbf1d9'; c.fillRect(x + 2, y + 5, 12, 8);
+  c.fillStyle = '#e8d4a8'; for (let i = 0; i < 6; i++) { c.fillRect(x + 2 + i, y + 5 + i, 1, 1); c.fillRect(x + 13 - i, y + 5 + i, 1, 1); }
+  heart(x + 5, y + 7, '#e03050'); heart(x + 4, y - 7 + bob, '#f04070');
+}
+function char(x, y, dir, pal, w) {
+  c.fillStyle = 'rgba(0,0,0,.2)'; c.fillRect(x + 3, y + 14, 10, 2);
+  c.fillStyle = pal.pants; c.fillRect(x + 4, y + 11, 3, w === 1 ? 3 : 4); c.fillRect(x + 9, y + 11, 3, w === 2 ? 3 : 4);
+  c.fillStyle = pal.shirt; c.fillRect(x + 3, y + 7, 10, 5);
+  c.fillStyle = pal.skin; c.fillRect(x + 4, y + 2, 8, 6);
+  c.fillStyle = pal.cap; c.fillRect(x + 3, y, 10, 4);
+  if (dir === 'up') c.fillRect(x + 4, y + 4, 8, 4);
+  c.fillStyle = pal.brim;
+  if (dir === 'down') c.fillRect(x + 4, y + 3, 8, 1); else if (dir === 'left') c.fillRect(x + 1, y + 3, 6, 1); else if (dir === 'right') c.fillRect(x + 9, y + 3, 6, 1);
+  c.fillStyle = '#303030';
+  if (dir === 'down') { c.fillRect(x + 5, y + 5, 1, 2); c.fillRect(x + 10, y + 5, 1, 2); }
+  else if (dir === 'left') c.fillRect(x + 5, y + 5, 1, 2); else if (dir === 'right') c.fillRect(x + 10, y + 5, 1, 2);
+}
+const PL = { cap: '#e03828', brim: '#a01c18', skin: '#f8c8a0', shirt: '#3868c8', pants: '#404878' };
+const NP = { cap: '#8a5a2a', brim: '#6a4220', skin: '#f8c8a0', shirt: '#f070a8', pants: '#f0f0f0' };
+
+/* ---- state ---- */
+const DX = { left: -1, right: 1, up: 0, down: 0 }, DY = { left: 0, right: 0, up: -1, down: 1 };
+const P = { x: 6, y: 5, dir: 'right', moving: false, prog: 0 };
+const NPC = { x: 9, y: 4, dir: 'down' };
+const LET = { x: 12, y: 4, on: false };
+const got = CONFIG.items.map(() => false);
+let hearts = 0, state = 'title', dlg = null, held = [], now = 0, ac;
+
+function beep(notes) {
+  try { ac = ac || new AudioContext(); notes.forEach((f, i) => { const o = ac.createOscillator(), g = ac.createGain(), t = ac.currentTime + i * .1; o.type = 'square'; o.frequency.value = f; o.connect(g); g.connect(ac.destination); g.gain.setValueAtTime(.05, t); g.gain.exponentialRampToValueAtTime(.001, t + .12); o.start(t); o.stop(t + .12); }); } catch (e) {}
+}
+function wrap(t) { const o = []; let l = ''; t.split(' ').forEach(w => { if ((l + ' ' + w).trim().length > 26) { o.push(l); l = w; } else l = (l + ' ' + w).trim(); }); if (l) o.push(l); return o; }
+function say(text, cb) { const L = wrap(text), pages = []; for (let i = 0; i < L.length; i += 2) pages.push(L.slice(i, i + 2)); dlg = { pages, pi: 0, ch: 0, cb }; state = 'dlg'; }
+
+function solid(x, y) {
+  if ('Thdw'.includes(tile(x, y))) return true;
+  return (x === NPC.x && y === NPC.y);
+}
+function onStep() {
+  CONFIG.items.forEach((it, i) => {
+    if (!got[i] && it.x === P.x && it.y === P.y) {
+      got[i] = true; hearts++; beep([660, 880, 1100]);
+      say(it.found, () => { if (hearts === CONFIG.items.length) { LET.on = true; beep([523, 659, 784, 1047]); say(CONFIG.allDone); } });
+    }
+  });
+  if (LET.on && P.x === LET.x && P.y === LET.y) openLetter();
+}
+function pressA() {
+  if (!ac) { try { ac = new AudioContext(); } catch (e) {} }
+  if (ac && ac.state === 'suspended') ac.resume();
+  if (state === 'title') { state = 'play'; say(CONFIG.intro); return; }
+  if (state === 'dlg') {
+    const pg = dlg.pages[dlg.pi], len = pg.join('').length;
+    if (dlg.ch < len) { dlg.ch = len; return; }
+    if (dlg.pi < dlg.pages.length - 1) { dlg.pi++; dlg.ch = 0; }
+    else { const cb = dlg.cb; dlg = null; state = 'play'; if (cb) cb(); }
+    return;
+  }
+  if (state === 'play' && !P.moving) {
+    const fx = P.x + DX[P.dir], fy = P.y + DY[P.dir];
+    if (fx === NPC.x && fy === NPC.y) { say(hearts >= CONFIG.items.length ? CONFIG.npcDone : CONFIG.npcHint); }
+    else if (tile(fx, fy) === 'd') say(CONFIG.doorText);
+    else if (LET.on && fx === LET.x && fy === LET.y) openLetter();
+  }
+}
+function update(dt) {
+  NPC.dir = (P.x < NPC.x) ? 'left' : (P.x > NPC.x ? 'right' : 'down');
+  if (state === 'dlg') { dlg.ch += dt * 0.04; return; }
+  if (state !== 'play') return;
+  if (P.moving) { P.prog += dt * 0.11; if (P.prog >= 16) { P.x += DX[P.dir]; P.y += DY[P.dir]; P.moving = false; P.prog = 0; onStep(); if (state !== 'play') return; } }
+  if (!P.moving && held.length) {
+    const d = held[held.length - 1]; P.dir = d;
+    if (!solid(P.x + DX[d], P.y + DY[d])) P.moving = true;
+  }
+}
+
+/* ---- drawing ---- */
+function box(x, y, w, h) { c.fillStyle = '#505868'; c.fillRect(x, y, w, h); c.fillStyle = '#f8f8f8'; c.fillRect(x + 2, y + 2, w - 4, h - 4); c.fillStyle = '#d04848'; c.fillRect(x + 3, y + 3, w - 6, 1); c.fillRect(x + 3, y + h - 4, w - 6, 1); c.fillStyle = '#e8e8f0'; c.fillRect(x + 3, y + 4, w - 6, h - 8); }
+function txt(s, x, y, col, size) { c.font = (size || 8) + 'px "Press Start 2P", monospace'; c.textBaseline = 'top'; c.fillStyle = col; c.fillText(s, x, y); }
+function drawTitle() {
+  const g = c.createLinearGradient(0, 0, 0, H); g.addColorStop(0, '#0a0614'); g.addColorStop(1, '#5a1020'); c.fillStyle = g; c.fillRect(0, 0, W, H);
+  for (let i = 0; i < 30; i++) { c.fillStyle = (Math.floor(now / 400) + i) % 3 ? '#fff4' : '#fff'; c.fillRect((i * 53) % W, (i * 31) % 90, 1, 1); }
+  c.font = '16px "Press Start 2P", monospace'; c.textBaseline = 'top';
+  const tw = (s) => c.measureText(s).width;
+  const t1 = CONFIG.titleTop, t2 = CONFIG.titleBottom;
+  [[t1, 28], [t2, 52]].forEach(([s, y]) => { const x = (W - tw(s)) / 2; c.fillStyle = '#601010'; c.fillText(s, x + 2, y + 2); c.fillStyle = '#f8d030'; c.fillText(s, x, y); c.fillStyle = '#f87820'; c.fillRect(x, y + 12, tw(s), 4); });
+  const bob = Math.round(Math.sin(now / 300) * 2); ball(W / 2 - 8, 82 + bob); heart(W / 2 - 3, 74 + bob, '#f04070');
+  if (Math.floor(now / 500) % 2) { c.font = '8px "Press Start 2P", monospace'; const s = 'PRESS START'; txt(s, (W - c.measureText(s).width) / 2, 128, '#f8f8f8'); }
+}
+function draw() {
+  if (state === 'title') { drawTitle(); return; }
+  const px = P.x * T + DX[P.dir] * P.prog * (P.moving ? 1 : 0), py = P.y * T + DY[P.dir] * P.prog * (P.moving ? 1 : 0);
+  const cx = Math.round(Math.max(0, Math.min(MW * T - W, px + 8 - W / 2))), cy = Math.round(Math.max(0, Math.min(MH * T - H, py + 8 - H / 2)));
+  c.fillStyle = '#000'; c.fillRect(0, 0, W, H);
+  c.drawImage(mapCv, -cx, -cy);
+  const list = [];
+  CONFIG.items.forEach((it, i) => { if (!got[i]) list.push([it.y * T, () => item(it.x * T - cx, it.y * T - cy, now)]); });
+  if (LET.on) list.push([LET.y * T, () => letterSprite(LET.x * T - cx, LET.y * T - cy, now)]);
+  list.push([NPC.y * T, () => char(NPC.x * T - cx, NPC.y * T - cy, NPC.dir, NP, 0)]);
+  list.push([py, () => char(Math.round(px) - cx, Math.round(py) - cy, P.dir, PL, P.moving ? (Math.floor(P.prog / 8) % 2 ? 1 : 2) : 0)]);
+  list.sort((a, b) => a[0] - b[0]).forEach(l => l[1]());
+  c.fillStyle = '#202838'; c.fillRect(2, 2, 12 * CONFIG.items.length + 4, 14); c.fillStyle = '#f8f8f8'; c.fillRect(3, 3, 12 * CONFIG.items.length + 2, 12);
+  CONFIG.items.forEach((_, i) => heart(6 + i * 12, 6, got[i] ? '#f04070' : '#a8a8b8'));
+  if (state === 'dlg') {
+    box(4, 108, 232, 48);
+    const pg = dlg.pages[dlg.pi]; let n = Math.floor(dlg.ch);
+    pg.forEach((ln, i) => { txt(ln.slice(0, Math.max(0, n)), 14, 119 + i * 14, '#383840'); n -= ln.length; });
+    if (dlg.ch >= pg.join('').length && Math.floor(now / 350) % 2) { c.fillStyle = '#d04848'; c.fillRect(222, 144, 6, 1); c.fillRect(223, 145, 4, 1); c.fillRect(224, 146, 2, 1); }
+  }
+}
+
+/* ---- letter ---- */
+const L = document.getElementById('letter'), LT = document.getElementById('ltxt');
+let typer;
+function openLetter() {
+  state = 'letter'; beep([784, 988, 1175, 1568]); L.hidden = false;
+  document.getElementById('lhead').textContent = 'A LETTER FOR ' + CONFIG.toName.toUpperCase();
+  LT.textContent = ''; let i = 0; clearInterval(typer);
+  typer = setInterval(() => { LT.textContent = CONFIG.letter.slice(0, ++i); if (i >= CONFIG.letter.length) clearInterval(typer); }, 32);
+  if (!matchMedia('(prefers-reduced-motion:reduce)').matches) for (let k = 0; k < 16; k++) setTimeout(() => { const h = document.createElement('div'); h.className = 'fh'; h.textContent = ['❤', '💗', '💕'][k % 3]; h.style.left = Math.random() * 95 + 'vw'; document.body.appendChild(h); setTimeout(() => h.remove(), 4200); }, k * 180);
+}
+LT.onclick = () => { clearInterval(typer); LT.textContent = CONFIG.letter; };
+document.getElementById('close').onclick = () => {
+  clearInterval(typer); L.hidden = true; state = 'play'; LET.on = false; say(CONFIG.ending);
+};
+
+/* ---- input ---- */
+const KM = { ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right', w: 'up', s: 'down', a: 'left', d: 'right', W: 'up', S: 'down', A: 'left', D: 'right' };
+addEventListener('keydown', e => {
+  if (KM[e.key]) { e.preventDefault(); const d = KM[e.key]; if (!held.includes(d)) held.push(d); }
+  else if (['z', 'Z', 'Enter', ' '].includes(e.key) && !e.repeat) { e.preventDefault(); pressA(); }
+});
+addEventListener('keyup', e => { if (KM[e.key]) held = held.filter(d => d !== KM[e.key]); });
+document.querySelectorAll('[data-d]').forEach(b => {
+  const d = b.dataset.d;
+  b.addEventListener('pointerdown', e => { e.preventDefault(); if (!held.includes(d)) held.push(d); if (state === 'title') pressA(); });
+  ['pointerup', 'pointerleave', 'pointercancel'].forEach(ev => b.addEventListener(ev, () => { held = held.filter(x => x !== d); }));
+});
+document.getElementById('ab').addEventListener('pointerdown', e => { e.preventDefault(); pressA(); });
+cv.addEventListener('pointerdown', () => { if (state === 'title') pressA(); });
+addEventListener('contextmenu', e => e.preventDefault());
+
+let last = performance.now();
+function loop(t) { const dt = Math.min(50, t - last); last = t; now = t; update(dt); draw(); requestAnimationFrame(loop); }
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
